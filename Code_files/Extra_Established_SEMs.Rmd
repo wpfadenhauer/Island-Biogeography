@@ -17,7 +17,7 @@ require(ResourceSelection)
 Data Prep
 ```{r}
 #Load data
-data <- fread("C:/Users/Will Pfadenhauer/OneDrive - University of Massachusetts/CHAP3_Island_Biogeo/Manuscript/Code_and_Data/Oceanic_Islands_Master_Database.csv")
+data <- fread("[link to Oceanic_Islands_Master_Database.csv]")
 
 #Create established richness column (aka total nonnative species)
 data$tot_nn_species <- data$Established_only_species + data$Invasive_species

@@ -1,0 +1,159 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--Record created using version 2.0.7 of the USGS Metadata Wizard tool. (https://github.com/usgs/fort-pymdwizard)-->
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <origin>William G. Pfadenhauer</origin>
+        <origin>Graziella V. DiRenzo</origin>
+        <origin>Bethany A. Bradley</origin>
+        <pubdate>20231030</pubdate>
+        <title>Biogeographic characteristics of oceanic islands and archipelagos with non-native plant species present</title>
+        <geoform>spreadsheet</geoform>
+        <onlink>https://doi.org/10.5066/xxxxxxxx</onlink>
+        <lworkcit>
+          <citeinfo>
+            <origin>William G. Pfadenhauer</origin>
+            <origin>Graziella V. DiRenzo</origin>
+            <origin>Bethany A. Bradley</origin>
+            <pubdate>20231030</pubdate>
+            <title>Human activity drives establishment, but not invasion, of non-native plants on islands</title>
+            <geoform>publication</geoform>
+          </citeinfo>
+        </lworkcit>
+      </citeinfo>
+    </citation>
+    <descript>
+      <abstract>See broader publication for abstract. </abstract>
+      <purpose>See broader publication for purpose. </purpose>
+    </descript>
+    <timeperd>
+      <timeinfo>
+        <sngdate>
+          <caldate>20231030</caldate>
+        </sngdate>
+      </timeinfo>
+      <current>publication date</current>
+    </timeperd>
+    <status>
+      <progress>Complete</progress>
+      <update>None planned</update>
+    </status>
+    <spdom>
+      <descgeog>Global islands</descgeog>
+      <bounding>
+        <westbc>-180.0000</westbc>
+        <eastbc>180.0000</eastbc>
+        <northbc>90.0000</northbc>
+        <southbc>-90.0000</southbc>
+      </bounding>
+    </spdom>
+    <keywords>
+      <theme>
+        <themekt>ISO 19115 Topic Category</themekt>
+        <themekey>biota</themekey>
+      </theme>
+      <theme>
+        <themekt>None</themekt>
+        <themekey/>
+      </theme>
+      <place>
+        <placekt>None</placekt>
+        <placekey>global</placekey>
+      </place>
+    </keywords>
+    <taxonomy>
+      <keywtax>
+        <taxonkt>See World Checklist of Vascular Plants for taxonomic backbone of species names referenced in this dataset. </taxonkt>
+        <taxonkey>N/A</taxonkey>
+      </keywtax>
+      <taxoncl>
+        <taxonrn>Multiple species. </taxonrn>
+        <taxonrv>Multiple species. </taxonrv>
+      </taxoncl>
+    </taxonomy>
+    <accconst>None.  Please see 'Distribution Info' for details.</accconst>
+    <useconst>None.  Users are advised to read the dataset's metadata thoroughly to understand appropriate use and data limitations.</useconst>
+    <ptcontac>
+      <cntinfo>
+        <cntperp>
+          <cntper>William G. Pfadenhauer</cntper>
+        </cntperp>
+        <cntaddr>
+          <addrtype>mailing</addrtype>
+          <address>160 Holdsworth Way</address>
+          <city>Amherst</city>
+          <state>Massachusetts</state>
+          <postal>01003</postal>
+          <country>United States of America</country>
+        </cntaddr>
+        <cntvoice>703-517-8974</cntvoice>
+        <cntemail>wpfadenhauer@umass.edu</cntemail>
+      </cntinfo>
+    </ptcontac>
+    <datacred>This work was funded by a U.S. Geological Survey Northeast Climate Adaptation Science Center graduate fellowship, grant G19AC00091 (WGP). </datacred>
+  </idinfo>
+  <dataqual>
+    <attracc>
+      <attraccr>See broader publication for data collection/validation details. </attraccr>
+    </attracc>
+    <logic>See broader publication for data collection/validation details. </logic>
+    <complete>Data represent broad-scale biotic and biogeographic data for islands. </complete>
+    <lineage>
+      <procstep>
+        <procdesc>See broader publication for data collection/validation details. </procdesc>
+        <procdate>20231030</procdate>
+      </procstep>
+    </lineage>
+  </dataqual>
+  <distinfo>
+    <distrib>
+      <cntinfo>
+        <cntperp>
+          <cntper>GS ScienceBase</cntper>
+          <cntorg>U.S. Geological Survey</cntorg>
+        </cntperp>
+        <cntaddr>
+          <addrtype>mailing address</addrtype>
+          <address>Denver Federal Center, Building 810, Mail Stop 302</address>
+          <city>Denver</city>
+          <state>CO</state>
+          <postal>80225</postal>
+          <country>United States</country>
+        </cntaddr>
+        <cntvoice>1-888-275-8747</cntvoice>
+        <cntemail>sciencebase@usgs.gov</cntemail>
+      </cntinfo>
+    </distrib>
+    <distliab>Unless otherwise stated, all data, metadata and related materials are considered to satisfy the quality standards relative to the purpose for which the data were collected. Although these data and associated metadata have been reviewed for accuracy and completeness and approved for release by the U.S. Geological Survey (USGS), no warranty expressed or implied is made regarding the display or utility of the data for other purposes, nor on all computer systems, nor shall the act of distribution constitute any such warranty.</distliab>
+    <stdorder>
+      <digform><digtinfo>
+          <formname>Digital Data</formname>
+        </digtinfo>
+        <digtopt><onlinopt><computer><networka><networkr>https://doi.org/10.5066/xxxxxxxx</networkr></networka></computer></onlinopt></digtopt></digform>
+      <fees>None</fees>
+    </stdorder>
+  </distinfo>
+  <metainfo>
+    <metd>20231029</metd>
+    <metc>
+      <cntinfo>
+        <cntperp>
+          <cntper>William G. Pfadenhauer</cntper>
+        </cntperp>
+        <cntaddr>
+          <addrtype>mailing</addrtype>
+          <address>160 Holdsworth Way</address>
+          <city>Amherst</city>
+          <state>Massachusetts</state>
+          <postal>01003</postal>
+          <country>United States of America</country>
+        </cntaddr>
+        <cntvoice>703-517-8974</cntvoice>
+        <cntemail>wpfadenhauer@umass.edu</cntemail>
+      </cntinfo>
+    </metc>
+    <metstdn>FGDC Biological Data Profile of the Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001.1-1999</metstdv>
+  </metainfo>
+</metadata>

@@ -1,6 +1,6 @@
 ---
 title: "Simulations"
-author: "Will Pfadenhauer and Grace DiRenzo"
+author: "Will Pfadenhauer and Graziella DiRenzo"
 date: "2023-09-25"
 output: html_document
 ---
