@@ -1,0 +1,606 @@
+---
+title: "Extra_SEMs_Native"
+author: "Will Pfadenhauer"
+date: "2023-09-18"
+output: html_document
+---
+Load packages
+```{r}
+require(data.table)
+require(piecewiseSEM)
+require(MASS)
+require(DHARMa)
+require(MuMIn)
+require(ResourceSelection)
+```
+
+Data Prep
+```{r}
+#Load data
+data <- fread("C:/Users/Will Pfadenhauer/OneDrive - University of Massachusetts/CHAP3_Island_Biogeo/Manuscript/Code_and_Data/Oceanic_Islands_Master_Database.csv")
+
+#Create established richness column (aka total nonnative species)
+data$tot_nn_species <- data$Established_only_species + data$Invasive_species
+
+#No need to center and scale predictor variables - pSEM does this automatically.
+
+#Changing the units so that unstandardized estimates from the model are more useful. 
+data$distance_landmass_10km <- data$Distance_to_nearest_landmass_m/10000
+data$Area_hundredsqkm <- data$Area_m2/100000000
+data$distance_continent_10km <- data$Distance_to_nearest_continent_m/10000
+data$Latitude_of_centroid <- as.numeric(data$Latitude_of_centroid)
+data$Latitude_of_centroid <- abs(data$Latitude_of_centroid)
+```
+
+The purpose of this file is to test all possible combinations of correlated variables, to figure out which combination works best. 
+
+There are two such pairs of covariates: maximum elevation and minimum monthly temperature (Pearson = 0.73) and distance to nearest continent and distance to nearest landmass (inherently similar).
+
+Human population and native species richness are correlated as well, but since this model *predicts* native species richness, and human population is not one of our hypothesized covariates here, we don't have to worry about that combination. 
+
+Two pairs of correlated variables, so there are four possible options:
+00
+01
+10
+11
+
+For each of these combinations of variables, I'm following these steps: 
+1. Fitting hypothesized pSEM
+2. Checking summary for significance of existing relationships, and any new relationships that need to be added
+3. Specifying the next iteration of the model based on the summary, and continuing until all relationships are significant. 
+4. Plotting the path diagram. 
+
+The R-squared and AIC values that are used to compare each of the 4 options are found within the summary as well. 
+
+Some variable combinations will be properly fit after only 2 iterations - others take a few more tries. 
+
+Correlated variables are commented out using #
+
+Each pSEM consists of a series of sub-models, which are either negative binomial GLMs (glm.nb) or traditional GLMs. 
+
+--
+
+OPTION 00: 
+
+Distance to nearest continent 
+Maximum elevation 
+```{r}
+#First attempt
+n00 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Area_hundredsqkm +
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Age_Ma + 
+                       Total_precip_mm_BIO12 +
+                       Precip_seasonality_BIO15 +
+                     #  Min_temp_deg_C_BIO6 +
+                       Max_temp_deg_C_BIO5 +
+                       Temp_range_deg_C_BIO7,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Area_hundredsqkm,
+                  data = data),
+              
+              #Sub-model 3
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid +
+                    Maximum_elevation_ft,
+                  family = "gaussian", data = data),
+              
+              #Sub-model 4
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 5
+            #  glm(Min_temp_deg_C_BIO6 ~
+            #        Latitude_of_centroid,
+            #      family = "gaussian",
+            #      data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 7
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data)
+)
+
+summary(n00, conserve = T)
+#You may have to scroll to the bottom of this code chunk to see results. 
+
+#Retain only significant variables (from the summary), and then add any new variables that are significant from tests of independence claims. 
+n00_2 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5+
+                       Total_precip_mm_BIO12+
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma,
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid +
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+summary(n00_2, conserve = T)
+#Just have to add one more thing: Elevation ~ area
+
+n00_3 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5+
+                       Total_precip_mm_BIO12+
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma +
+                    Area_hundredsqkm,
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid +
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+summary(n00_3, conserve = T)
+#This says add elevation~distance too. 
+
+n00_4 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5+
+                       Total_precip_mm_BIO12+
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma +
+                    Area_hundredsqkm+
+                    distance_continent_10km,
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid +
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+summary(n00_4, conserve = T)
+#Looks like we're done. 
+
+#Draw the path diagram. 
+plot(n00_4)
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.98
+
+#Remove the in-progress ones, so we only have the final pSEM for this combination of variables. 
+rm(n00, n00_2, n00_3)
+```
+This option (00) is the WINNER - highest R squared. We'll use distance to nearest continent and maximum elevation in the other file (SEMs_Native.Rmd). 
+
+
+OPTION 01: 
+
+Distance to nearest continent 
+Min_temp_deg_C_BIO6
+
+Correlated variables are commented out using #
+
+Each pSEM consists of a series of sub-models, which are either negative binomial GLMs (glm.nb) or traditional GLMs. 
+```{r}
+#First attempt
+n01 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Area_hundredsqkm +
+                       #Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Age_Ma + 
+                       Total_precip_mm_BIO12 +
+                       Precip_seasonality_BIO15 +
+                       Min_temp_deg_C_BIO6 +
+                       Max_temp_deg_C_BIO5 +
+                       Temp_range_deg_C_BIO7,
+                       data = data),              
+              
+              #Sub-model 2
+              #glm.nb(Maximum_elevation_ft ~ 
+              #      Area_hundredsqkm,
+              #    data = data),
+              
+              #Sub-model 3
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+             #       Maximum_elevation_ft,
+                  family = "gaussian", data = data),
+              
+              #Sub-model 4
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 7
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data)
+)
+
+summary(n01)
+#You may have to scroll to the bottom of this code chunk to see results. 
+
+#Retain only significant variables (from the summary), and then add any new variables that are significant from tests of independence claims. 
+n01_2 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       distance_continent_10km +
+                       Total_precip_mm_BIO12+
+                       Min_temp_deg_C_BIO6 +
+                       Max_temp_deg_C_BIO5+
+                         Latitude_of_centroid,
+                       data = data),    
+              
+             #Sub-model 3
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~
+                   Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(n01_2, conserve = T)
+
+#Next iteration 
+n01_3 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       distance_continent_10km +
+                       Total_precip_mm_BIO12+
+                       Min_temp_deg_C_BIO6 +
+                       Max_temp_deg_C_BIO5+
+                         Latitude_of_centroid,
+                       data = data),    
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~
+                   Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(n01_3, conserve = T)
+#Looks like we're done
+
+#Draw the path diagram.
+plot(n01_3)
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.94
+
+#Remove in-progress ones, so that it only leaves the final version. 
+rm(n01, n01_2)
+```
+
+I'm going to include fewer comments in the next two code chunks, but I'm following the exact same process as above. 
+
+
+OPTION 10: 
+
+Distance to nearest landmass
+Maximum elevation 
+```{r}
+n10 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Area_hundredsqkm +
+                       Maximum_elevation_ft +
+                       distance_landmass_10km +
+                       Age_Ma + 
+                       Total_precip_mm_BIO12 +
+                       Precip_seasonality_BIO15 +
+                     #  Min_temp_deg_C_BIO6 +
+                       Max_temp_deg_C_BIO5 +
+                       Temp_range_deg_C_BIO7,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Area_hundredsqkm,
+                  data = data),
+              
+              #Sub-model 3
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid +
+                    Maximum_elevation_ft,
+                  family = "gaussian", data = data),
+              
+              #Sub-model 4
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 5
+            #  glm(Min_temp_deg_C_BIO6 ~
+            #        Latitude_of_centroid,
+            #      family = "gaussian",
+            #      data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 7
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data)
+)
+
+summary(n10, conserve = T)
+
+
+n10_2 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_landmass_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Temp_range_deg_C_BIO7+
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma,
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid +
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 7
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid +
+                    Area_hundredsqkm +
+                    Maximum_elevation_ft ,
+                  family = "gaussian", data = data)
+)
+
+summary(n10_2, conserve = T)
+
+n10_3 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_landmass_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma+
+                      Area_hundredsqkm,
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid +
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(n10_3, conserve = T)
+plot(n10_3)
+
+#R-squared = 0.97
+
+rm(n10, n10_2)
+```
+
+
+
+OPTION 11: 
+
+Distance to nearest landmass
+Min_temp_deg_C_BIO6
+```{r}
+n11 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Area_hundredsqkm +
+                     #  Maximum_elevation_ft +
+                       distance_landmass_10km +
+                       Age_Ma + 
+                       Total_precip_mm_BIO12 +
+                       Precip_seasonality_BIO15 +
+                       Min_temp_deg_C_BIO6 +
+                       Max_temp_deg_C_BIO5 +
+                       Temp_range_deg_C_BIO7,
+                       data = data),              
+              
+              #Sub-model 2
+             # glm.nb(Maximum_elevation_ft ~ 
+              #      Area_hundredsqkm,
+              #    data = data),
+              
+              #Sub-model 3
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                #    Maximum_elevation_ft,
+                  family = "gaussian", data = data),
+              
+              #Sub-model 4
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 7
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data)
+)
+
+summary(n11, conserve = T)
+
+
+n11_2 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       distance_landmass_10km +
+                       Age_Ma + 
+                       Min_temp_deg_C_BIO6 +
+                       Max_temp_deg_C_BIO5 +
+                       Temp_range_deg_C_BIO7+
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 7
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian", data = data)
+)
+
+summary(n11_2, conserve = T)
+
+
+
+n11_3 <-  psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       distance_landmass_10km +
+                       Age_Ma + 
+                       Min_temp_deg_C_BIO6 +
+                       Max_temp_deg_C_BIO5 +
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 6
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+summary(n11_3, conserve = T)
+plot(n11_3)
+
+#R-squared = 0.93
+
+rm(n11, n11_2)
+```
+
+
+
+

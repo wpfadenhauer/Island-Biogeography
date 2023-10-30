@@ -1,0 +1,1016 @@
+---
+title: "Extra_SEMs_Invasive"
+author: "Will Pfadenhauer"
+date: "2023-09-18"
+output: html_document
+---
+Load packages
+```{r}
+require(data.table)
+require(piecewiseSEM)
+require(MASS)
+require(DHARMa)
+require(MuMIn)
+require(ResourceSelection)
+```
+
+Data Prep
+```{r}
+#Load data
+data <- fread("C:/Users/Will Pfadenhauer/OneDrive - University of Massachusetts/CHAP3_Island_Biogeo/Manuscript/Code_and_Data/Oceanic_Islands_Master_Database.csv")
+
+#Create established richness column (aka total nonnative species)
+data$tot_nn_species <- data$Established_only_species + data$Invasive_species
+
+#No need to center and scale predictor variables - pSEM does this automatically.
+
+#Changing the units so that unstandardized estimates from the model are more useful. 
+data$distance_landmass_10km <- data$Distance_to_nearest_landmass_m/10000
+data$Area_hundredsqkm <- data$Area_m2/100000000
+data$distance_continent_10km <- data$Distance_to_nearest_continent_m/10000
+data$Latitude_of_centroid <- as.numeric(data$Latitude_of_centroid)
+data$Latitude_of_centroid <- abs(data$Latitude_of_centroid)
+```
+
+The purpose of this file is to test all possible combinations of correlated variables, to figure out which combination works best. 
+
+There are three such pairs of covariates: maximum elevation and minimum monthly temperature (Pearson = 0.73), human population and native plant richness (Pearson = 0.80), and distance to nearest continent and distance to nearest landmass (inherently similar).
+
+There are three pairs of correlated variables, so there are eight possible options:
+000
+001
+010
+011
+100
+101
+110
+111
+
+For each of these combinations of variables, I'm following these steps: 
+1. Fitting hypothesized pSEM
+2. Checking summary for significance of existing relationships, and any new relationships that need to be added
+3. Specifying the next iteration of the model based on the summary, and continuing until all relationships are significant. 
+4. Plotting the path diagram. 
+
+The R-squared and AIC values that are used to compare each of the 4 options are found within the summary as well. 
+
+Some variable combinations will be properly fit after only 2 iterations - others take a few more tries. 
+
+Correlated variables are commented out using #
+
+Each pSEM consists of a series of sub-models, which are either negative binomial GLMs (glm.nb) or traditional GLMs. 
+
+
+--
+
+OPTION 000: 
+
+Native species
+Distance to landmass
+Maximum elevation
+```{r}
+i000 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Native_species + 
+                       distance_landmass_10km + 
+                       Max_temp_deg_C_BIO5 + 
+                       Area_hundredsqkm + 
+                       Average_human_modification + 
+                       #Human_population +                       
+                       GDP_per_capita + 
+                       Maximum_elevation_ft +
+                       Temp_range_deg_C_BIO7 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                      data = data),
+               
+              #Sub-model 2
+               glm.nb(Native_species ~ 
+                       Age_Ma + 
+                       distance_landmass_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Area_hundredsqkm +
+                       Temp_range_deg_C_BIO7+
+                       Maximum_elevation_ft +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                       data = data),              
+              
+              #Sub-model 3 
+              #glm(Human_population ~ 
+              #      Max_temp_deg_C_BIO5 + 
+              #      Area_hundredsqkm +
+              #      Year_of_modern_colonization,
+              #    family = "poisson", data = data),
+              
+              #Sub-model 4
+              #glm(Average_human_modification ~ 
+              #      Human_population,
+              #    family= gaussian, data=data),
+              
+              #Sub-model 5
+              glm.nb(Maximum_elevation_ft ~ 
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  data = data),
+              
+              #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 8
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 9
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i000, conserve = T)
+#You may need to scroll to the end of this code chunk to see the summary. 
+
+#Retain only significant variables (from the summary), and then add any new variables that are significant from tests of independence claims. 
+i000_2 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5 + 
+                       Maximum_elevation_ft,
+                      data = data),
+              
+              #Sub-model 5
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma,
+                  data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+
+summary(i000_2, conserve = T)
+#You may need to scroll to the end of this code chunk to see the summary. 
+
+#Retain only significant variables (from the summary), and then add any new variables that are significant from tests of independence claims. 
+i000_3 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5 + 
+                       Maximum_elevation_ft,
+                      data = data),
+              
+              #Sub-model 5
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma+
+                    Area_hundredsqkm,
+                  data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+summary(i000_3, conserve = T)
+#Everything looks good. 
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.51
+
+#Draw the path diagram
+plot(i000_3)
+
+#Remove the in-progress ones, so we only have the final pSEM for this combination of variables. 
+rm(i000, i000_2)
+```
+
+
+I'm going to include fewer comments in the rest of the code chunks, but I'm following the exact same process as above. 
+
+
+--
+
+OPTION 001:
+
+Native species
+Distance to landmass
+Minimum temp
+```{r}
+i001 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Native_species + 
+                       distance_landmass_10km + 
+                       Max_temp_deg_C_BIO5 + 
+                       Area_hundredsqkm + 
+                       Average_human_modification + 
+                       #Human_population +                       
+                       GDP_per_capita + 
+                       Min_temp_deg_C_BIO6 +
+                       Temp_range_deg_C_BIO7 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                      data = data),
+               
+              #Sub-model 2
+               glm.nb(Native_species ~ 
+                       Age_Ma + 
+                       distance_landmass_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Area_hundredsqkm +
+                       Temp_range_deg_C_BIO7+
+                       Min_temp_deg_C_BIO6 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                       data = data),              
+              
+              #Sub-model 3 
+              #glm(Human_population ~ 
+              #      Max_temp_deg_C_BIO5 + 
+              #      Area_hundredsqkm +
+              #      Year_of_modern_colonization,
+              #    family = "poisson", data = data),
+              
+              #Sub-model 4
+              #glm(Average_human_modification ~ 
+              #     Human_population,
+              #    family= gaussian, data=data),
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~ 
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+              
+              #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 8
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 9
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i001, conserve = T)
+
+i001_2 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5,
+                      data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+
+)
+
+summary(i001_2, conserve = T)
+#Everything looks good. 
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.33
+
+#Draw the path diagram
+plot(i001_2)
+
+#Remove the in-progress ones, so we only have the final pSEM for this combination of variables. 
+rm(i001)
+```
+
+
+OPTION 010: 
+Native species
+Distance to continent
+Maximum elevation
+```{r}
+i010 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Native_species + 
+                       distance_continent_10km + 
+                       Max_temp_deg_C_BIO5 + 
+                       Area_hundredsqkm + 
+                       Average_human_modification + 
+                       #Human_population +                       
+                       GDP_per_capita + 
+                       Maximum_elevation_ft +
+                       Temp_range_deg_C_BIO7 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                      data = data),
+               
+              #Sub-model 2
+               glm.nb(Native_species ~ 
+                       Age_Ma + 
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Area_hundredsqkm +
+                       Temp_range_deg_C_BIO7+
+                       Maximum_elevation_ft +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                       data = data),              
+              
+              #Sub-model 3 
+              #glm(Human_population ~ 
+              #      Max_temp_deg_C_BIO5 + 
+              #      Area_hundredsqkm +
+              #      Year_of_modern_colonization,
+              #    family = "poisson", data = data),
+              
+              #Sub-model 4
+              #glm(Average_human_modification ~ 
+              #      Human_population,
+              #    family= gaussian, data=data),
+              
+              #Sub-model 5
+              glm.nb(Maximum_elevation_ft ~ 
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  data = data),
+              
+              #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 8
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 9
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i010, conserve = T)
+
+i010_2 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                        distance_continent_10km+
+                       Max_temp_deg_C_BIO5 + 
+                       Maximum_elevation_ft,
+                      data = data),
+               
+              #Sub-model 5
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma,
+                  data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                   Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+
+)
+  
+summary(i010_2, conserve = T)
+
+i010_3 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5 + 
+                       Maximum_elevation_ft,
+                      data = data),
+               
+              #Sub-model 5
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma +
+                    Area_hundredsqkm,
+                  data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                   Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+
+)
+  
+summary(i010_3, conserve = T)
+#Everything looks good. 
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.51
+
+#Draw the path diagram
+plot(i010_3)
+
+#Remove the in-progress ones, so we only have the final pSEM for this combination of variables. 
+rm(i010, i010_2)
+```
+
+
+OPTION 011: 
+
+Native species
+Distance to continent
+Minimum temp
+```{r}
+i011 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Native_species + 
+                       distance_continent_10km + 
+                       Max_temp_deg_C_BIO5 + 
+                       Area_hundredsqkm + 
+                       Average_human_modification + 
+                       #Human_population +                       
+                       GDP_per_capita + 
+                       Min_temp_deg_C_BIO6 +
+                       Temp_range_deg_C_BIO7 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                      data = data),
+               
+              #Sub-model 2
+               glm.nb(Native_species ~ 
+                       Age_Ma + 
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Area_hundredsqkm +
+                       Temp_range_deg_C_BIO7+
+                       Min_temp_deg_C_BIO6+
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                       data = data),              
+              
+              #Sub-model 3 
+              #glm(Human_population ~ 
+              #      Max_temp_deg_C_BIO5 + 
+              #      Area_hundredsqkm +
+              #      Year_of_modern_colonization,
+              #    family = "poisson", data = data),
+              
+              #Sub-model 4
+              #glm(Average_human_modification ~ 
+              #      Human_population,
+              #    family= gaussian, data=data),
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~ 
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                 family = "gaussian", data = data),
+              
+              #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 8
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 9
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i011)
+
+i011_2 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                        distance_continent_10km+
+                       Max_temp_deg_C_BIO5,
+                      data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+summary(i011_2, conserve = T)
+
+i011_3 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5,
+                      data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+summary(i011_3, conserve = T)
+#Everything looks good. 
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.33
+
+#Draw the path diagram
+plot(i011_3)
+
+#Remove the in-progress ones, so we only have the final pSEM for this combination of variables. 
+rm(i011, i011_2)
+```
+
+
+OPTION 100: WINNER (identical to option 110)
+
+Human population
+Distance to landmass
+Maximum elevation
+```{r}
+i100 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       #Native_species + 
+                       distance_landmass_10km + 
+                       Max_temp_deg_C_BIO5 + 
+                       Area_hundredsqkm + 
+                       Average_human_modification + 
+                       Human_population +                       
+                       GDP_per_capita + 
+                       Maximum_elevation_ft +
+                       Temp_range_deg_C_BIO7 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                      data = data),
+               
+              #Sub-model 2
+              # glm.nb(Native_species ~ 
+              #         Age_Ma + 
+              #         distance_landmass_km +
+              #         Max_temp_deg_C_BIO5 +
+              #         Area_hundredsqkm +
+              #         Temp_range_deg_C_BIO7+
+              #         Min_temp_deg_C_BIO6 +
+              #         Precip_seasonality_BIO15 +
+              #        Total_precip_mm_BIO12,
+              #         data = data),              
+              
+              #Sub-model 3 
+              glm(Human_population ~ 
+                    Max_temp_deg_C_BIO5 + 
+                    Area_hundredsqkm +
+                    Year_of_modern_colonization,
+                 family = "poisson", data = data),
+              
+              #Sub-model 4
+              glm(Average_human_modification ~ 
+                    Human_population,
+                  family= gaussian, data=data),
+              
+              #Sub-model 5
+              glm.nb(Maximum_elevation_ft ~ 
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  data = data),
+              
+              #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 8
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 9
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i100, conserve = T)
+
+
+i100_2 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5 + 
+                       Maximum_elevation_ft,
+                      data = data),
+              
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+summary(i100_2, conserve = T)
+#Everything looks good. 
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.51
+
+#Draw the path diagram
+plot(i100_2)
+
+#Remove the in-progress ones, so we only have the final pSEM for this combination of variables. 
+rm(i100)
+```
+
+
+OPTION 101: 
+
+Human population
+Distance to landmass
+Minimum temperature
+```{r}
+i101 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       #Native_species + 
+                       distance_landmass_10km + 
+                       Max_temp_deg_C_BIO5 + 
+                       Area_hundredsqkm + 
+                       Average_human_modification + 
+                       Human_population +                       
+                       GDP_per_capita + 
+                       Min_temp_deg_C_BIO6 +
+                       Temp_range_deg_C_BIO7 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                      data = data),
+               
+              #Sub-model 2
+              # glm.nb(Native_species ~ 
+              #         Age_Ma + 
+              #         distance_landmass_km +
+              #         Max_temp_deg_C_BIO5 +
+              #         Area_hundredsqkm +
+              #         Temp_range_deg_C_BIO7+
+              #         Min_temp_deg_C_BIO6 +
+              #         Precip_seasonality_BIO15 +
+              #         Total_precip_mm_BIO12,
+              #         data = data),              
+              
+              #Sub-model 3 
+              glm(Human_population ~ 
+                    Max_temp_deg_C_BIO5 + 
+                    Area_hundredsqkm +
+                    Year_of_modern_colonization,
+                  family = "poisson", data = data),
+              
+              #Sub-model 4
+              glm(Average_human_modification ~ 
+                    Human_population,
+                  family= gaussian, data=data),
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~ 
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+              
+              #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 8
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 9
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i101, conserve = T)
+
+i101_2 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5 + 
+                       Min_temp_deg_C_BIO6,
+                      data = data),
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~ 
+                    Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i101_2, conserve = T)
+#Everything looks good. 
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.42
+
+#Draw the path diagram
+plot(i101_2)
+
+#Remove the in-progress ones, so we only have the final pSEM for this combination of variables. 
+rm(i101)
+```
+
+
+OPTION 110: WINNER (highest R squared - 0.51 - and lowest AIC)
+
+Human population
+Distance to continent
+Maximum elevation
+```{r}
+i110 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       #Native_species + 
+                       distance_continent_10km + 
+                       Max_temp_deg_C_BIO5 + 
+                       Area_hundredsqkm + 
+                       Average_human_modification + 
+                       Human_population +                       
+                       GDP_per_capita + 
+                       Maximum_elevation_ft +
+                       Temp_range_deg_C_BIO7 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                      data = data),
+               
+              #Sub-model 2
+              # glm.nb(Native_species ~ 
+              #         Age_Ma + 
+              #         distance_landmass_km +
+              #         Max_temp_deg_C_BIO5 +
+              #         Area_hundredsqkm +
+              #         Temp_range_deg_C_BIO7+
+              #         Min_temp_deg_C_BIO6 +
+              #         Precip_seasonality_BIO15 +
+              #        Total_precip_mm_BIO12,
+              #         data = data),              
+              
+              #Sub-model 3 
+              glm(Human_population ~ 
+                    Max_temp_deg_C_BIO5 + 
+                    Area_hundredsqkm +
+                    Year_of_modern_colonization,
+                 family = "poisson", data = data),
+              
+              #Sub-model 4
+              glm(Average_human_modification ~ 
+                    Human_population,
+                  family= gaussian, data=data),
+              
+              #Sub-model 5
+              glm.nb(Maximum_elevation_ft ~ 
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                   data = data),
+              
+              #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 8
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 9
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i110, conserve = T)
+
+i110_2 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5 + 
+                       Maximum_elevation_ft,
+                      data = data),
+            
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i110_2, conserve = T)
+#Everything looks good. 
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.51
+
+#Draw the path diagram
+plot(i110_2)
+
+#Remove the in-progress ones, so we only have the final pSEM for this combination of variables. 
+rm(i110)
+```
+
+
+OPTION 111: 
+
+Human population
+Distance to continent
+minimum temperature
+```{r}
+i111 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       #Native_species + 
+                       distance_continent_10km + 
+                       Max_temp_deg_C_BIO5 + 
+                       Area_hundredsqkm + 
+                       Average_human_modification + 
+                       Human_population +                       
+                       GDP_per_capita + 
+                       Min_temp_deg_C_BIO6 +
+                       Temp_range_deg_C_BIO7 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                      data = data),
+               
+              #Sub-model 2
+              # glm.nb(Native_species ~ 
+              #         Age_Ma + 
+              #         distance_landmass_km +
+              #         Max_temp_deg_C_BIO5 +
+              #         Area_hundredsqkm +
+              #         Temp_range_deg_C_BIO7+
+              #         Min_temp_deg_C_BIO6 +
+              #         Precip_seasonality_BIO15 +
+              #        Total_precip_mm_BIO12,
+              #         data = data),              
+              
+              #Sub-model 3 
+              glm(Human_population ~ 
+                    Max_temp_deg_C_BIO5 + 
+                    Area_hundredsqkm +
+                    Year_of_modern_colonization,
+                 family = "poisson", data = data),
+              
+              #Sub-model 4
+              glm(Average_human_modification ~ 
+                    Human_population,
+                  family= gaussian, data=data),
+              
+              #Sub-model 5
+              glm(Min_temp_deg_C_BIO6 ~ 
+                    Area_hundredsqkm +
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+              
+              #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 8
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 9
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i111, conserve = T)
+
+
+i111_2 <-  psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5 ,
+                      data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(i111_2, conserve = T)
+#Everything looks good. 
+
+#Check the Nagelkerke R-squared value (from the summary above) 
+#R-squared = 0.33
+
+#Draw the path diagram
+plot(i111_2)
+
+#Remove the in-progress ones, so we only have the final pSEM for this combination of variables. 
+rm(i111)
+```
+

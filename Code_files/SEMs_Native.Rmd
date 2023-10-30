@@ -1,0 +1,324 @@
+---
+title: "SEMs_Native"
+author: "Will Pfadenhauer"
+date: "2023-09-07"
+output: html_document
+---
+
+Load packages
+```{r}
+require(data.table)
+require(piecewiseSEM)
+require(MASS)
+require(DHARMa)
+require(MuMIn)
+require(ResourceSelection)
+require(ggplot2)
+require(semEff)
+```
+
+Note: some code files from this manuscript use the same names for objects. It is highly recommended that you clear your environment before running the following code. 
+
+Data Prep
+```{r}
+#Load data
+data <- fread("C:/Users/Will Pfadenhauer/OneDrive - University of Massachusetts/CHAP3_Island_Biogeo/Manuscript/Code_and_Data/Oceanic_Islands_Master_Database.csv")
+
+#Create established richness column (aka total nonnative species)
+data$tot_nn_species <- data$Established_only_species + data$Invasive_species
+
+#No need to center and scale predictor variables - pSEM does this automatically.
+
+#Changing the units so that unstandardized estimates from the model are more useful. 
+data$Area_hundredsqkm <- data$Area_m2/100000000
+data$distance_continent_10km <- data$Distance_to_nearest_continent_m/10000
+data$Latitude_of_centroid <- as.numeric(data$Latitude_of_centroid)
+data$Latitude_of_centroid <- abs(data$Latitude_of_centroid)
+```
+
+To fit each pSEM, I'm following this process: 
+1. Fitting hypothesized pSEM (see manuscript Figure S1)
+2. Checking summary for significance of existing relationships, and any new relationships that need to be added
+3. Specifying the next iteration of the model based on the summary, and continuing until all relationships are significant. 
+4. Plotting the path diagram. 
+
+See the file Extra_Native_SEMs.Rmd for details on how I chose between correlated variables for this file. 
+
+
+Fitting the pSEMs
+Each pSEM consists of a series of sub-models, which are either negative binomial GLMs (glm.nb) or traditional GLMs. 
+```{r}
+
+hyp <- psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Area_hundredsqkm +
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Age_Ma + 
+                       Total_precip_mm_BIO12 +
+                       Precip_seasonality_BIO15 +
+                       Max_temp_deg_C_BIO5 +
+                       Temp_range_deg_C_BIO7,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Area_hundredsqkm,
+                  data = data),
+              
+              #Sub-model 3
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid +
+                    Maximum_elevation_ft,
+                  family = "gaussian", data = data),
+              
+              #Sub-model 4
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 5
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+               #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data)
+)
+
+summary(hyp, conserve = T)
+#Initial check of hypotheses
+```
+
+This is attempt two - we're keeping the significant variables from hyp, and then adding in any new relationships identified by the tests of directed separation (as long as they have support from literature). 
+```{r}
+
+hyp2  <- psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Total_precip_mm_BIO12+
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Age_Ma,
+                  data = data),
+              
+               #Sub-model 5
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+              
+)
+  
+summary(hyp2, conserve = T)
+```
+
+```{r}
+
+hyp3  <- psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Total_precip_mm_BIO12+
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                    Area_hundredsqkm+
+                    Age_Ma,
+                  data = data),
+              
+               #Sub-model 5
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+              
+)
+  
+summary(hyp3, conserve = T)
+```
+
+
+```{r}
+hyp4  <- psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Total_precip_mm_BIO12+
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                     distance_continent_10km+
+                    Area_hundredsqkm+
+                    Age_Ma,
+                  data = data),
+              
+               #Sub-model 5
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+              
+)
+  
+summary(hyp4, conserve = T)
+#Now that everything looks good, it's time for some bootstrapping to estimate the parameters. 
+
+
+#Extract coefficients by bootstrapping (this make take a little while)
+boot1 <- bootEff(hyp4, R = 10000, seed = 3, parallel = "multicore", type = "parametric")
+#Note- there may be a handful of error messages about algorithms not converging. That is ok - we're running 10,000 iterations, so it's extremely likely that some of them won't work. 
+
+effs1 <- semEff(boot1)
+summary(effs1)  
+
+#Remove total precip
+```
+
+Revised model based on bootstrapping
+```{r}
+hyp5  <- psem(               
+              #Sub-model 1
+              glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Latitude_of_centroid,
+                       data = data),              
+              
+              #Sub-model 2
+              glm.nb(Maximum_elevation_ft ~ 
+                     distance_continent_10km+
+                    Area_hundredsqkm+
+                    Age_Ma,
+                  data = data),
+              
+               #Sub-model 5
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+              
+)
+
+summary(hyp5, conserve = T)
+#Both goodness-of-fit test are insignificant, which indicates proper fit. 
+
+plot(hyp5)
+
+#Extract coefficients by bootstrapping
+boot2 <- bootEff(hyp5, R = 10000, seed = 3, parallel = "multicore", type = "parametric")
+
+effs2 <- semEff(boot2)
+summary(effs2)  
+
+#Everything is significant, so we're done. 
+
+rm(hyp, hyp2, hyp3, hyp4)
+rm(boot1, effs1)
+```
+
+Now, we're testing each component sub-model of our pSEM to make sure they are properly fit and don't violate any assumptions. 
+
+Sub-Model 1
+```{r}
+              #Sub-model 1
+sm1 <-         glm.nb(Native_species ~ 
+                       Maximum_elevation_ft +
+                       distance_continent_10km +
+                       Max_temp_deg_C_BIO5 +
+                       Latitude_of_centroid,
+                       data = data)
+
+options(na.action=na.fail)
+aic_sm1 <- dredge(sm1)
+#Lowest AIC is the one that uses all the variables. 
+
+summary(sm1) #Note that dispersion parameter is a little high.
+
+#Check other model diagnostics
+#Ratio of deviance explained - pretty good
+(sm1$null.deviance - (deviance(sm1))) / sm1$null.deviance * 100
+
+#Another check for overdispersion
+sm1$deviance/sm1$df.residual # Fairly close to 1
+sum((resid(sm1, type = "pearson"))^2) < sm1$df.residual #FALSE - 43 vs 41. See note below. Again, suggests possible overdispersion. 
+
+#simulate residuals with DHARMa
+simulationOutput_sm1 <- simulateResiduals(fittedModel = sm1, plot = T) #No issues with DHARMa - looks really good. 
+
+plot(sm1$fitted.values, residuals.glm(sm1))
+#No obvious patterns here. 
+```
+This model does seem like it might be slightly overdispersed (even after using negative binomial instead of Poisson), but the DHARMa simulations show that it still fits pretty well. See the Simulations.Rmd file for more details - we tested the effects of overdispersion on parameter estimates in this scenario, and it seems to be ok.
+
+
+All the same steps as above, but for sub-model 2
+```{r}
+              #Sub-model 2
+sm2 <-        glm.nb(Maximum_elevation_ft ~ 
+                     distance_continent_10km+
+                    Area_hundredsqkm+
+                    Age_Ma,
+                  data = data)
+
+options(na.action=na.fail)
+aic_sm2 <- dredge(sm2)
+
+summary(sm2)
+
+(sm2$null.deviance - (deviance(sm2))) / sm2$null.deviance * 100
+
+sm2$deviance/sm2$df.residual 
+
+sum((resid(sm2, type = "pearson"))^2) < sm2$df.residual
+
+simulationOutput_sm2 <- simulateResiduals(fittedModel = sm2, plot = T)
+
+plot(sm2$fitted.values, residuals.glm(sm2))
+```
+No issues with this sub-model - looks properly fit. 
+
+All the same steps as above, but for sub-model 5
+```{r}
+sm5 <-          glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid+
+                    Area_hundredsqkm,
+                  family = "gaussian",
+                  data = data)
+
+options(na.action=na.fail)
+aic_sm5 <- dredge(sm5)
+
+#Note: no dispersion parameters here since it's not a negative binomial glm. 
+
+(sm5$null.deviance - (deviance(sm5))) / sm5$null.deviance * 100 
+
+simulationOutput_sm5 <- simulateResiduals(fittedModel = sm5, plot = T) 
+
+plot(sm5$fitted.values, residuals.glm(sm5))
+```
+The DHARMa plots don't look good for this model. But the purpose of this project is to predict species richness, not maximum temperature, so it's very possible we're missing some predictors that would correct the DHARMa plots here. That's ok - it shouldn't significantly affect our parameters for the native species richness model. 

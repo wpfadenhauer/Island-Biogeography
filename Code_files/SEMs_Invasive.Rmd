@@ -1,0 +1,254 @@
+---
+title: "SEMs_Invasive"
+author: "Will Pfadenhauer"
+date: "2023-09-18"
+output: html_document
+---
+
+Load packages
+```{r}
+require(data.table)
+require(piecewiseSEM)
+require(MASS)
+require(DHARMa)
+require(MuMIn)
+require(ResourceSelection)
+require(ggplot2)
+require(car)
+require(semEff)
+```
+
+Note: some code files from this manuscript use the same names for objects. It is highly recommended that you clear your environment before running the following code (unless you're only running the plots section at the bottom). 
+
+Data Prep
+```{r}
+#Load data
+data <- fread("C:/Users/Will Pfadenhauer/OneDrive - University of Massachusetts/CHAP3_Island_Biogeo/Manuscript/Code_and_Data/Oceanic_Islands_Master_Database.csv")
+
+#Create established richness column (aka total nonnative species)
+data$tot_nn_species <- data$Established_only_species + data$Invasive_species
+
+#No need to center and scale predictor variables - pSEM does this automatically.
+
+#Changing the units so that unstandardized estimates from the model are more useful. 
+data$Area_hundredsqkm <- data$Area_m2/100000000
+data$distance_continent_10km <- data$Distance_to_nearest_continent_m/10000
+data$Latitude_of_centroid <- abs(data$Latitude_of_centroid)
+```
+
+To fit each pSEM, I'm following this process: 
+1. Fitting hypothesized pSEM (see manuscript Figure S1)
+2. Checking summary for significance of existing relationships, and any new relationships that need to be added
+3. Specifying the next iteration of the model based on the summary, and continuing until all relationships are significant. 
+4. Plotting the path diagram. 
+
+See the file Extra_Established_SEMs.Rmd for details on how I chose between correlated variables for this file. 
+
+
+Fitting the pSEMs
+Each pSEM consists of a series of sub-models, which are either negative binomial GLMs (glm.nb) or traditional GLMs. 
+```{r}
+hyp <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       #Native_species + #Not used, see note below for sub-model 2
+                       distance_continent_10km + 
+                       Max_temp_deg_C_BIO5 + 
+                       Area_hundredsqkm + 
+                       Average_human_modification + 
+                       Human_population +                       
+                       GDP_per_capita + 
+                       Maximum_elevation_ft +
+                       Temp_range_deg_C_BIO7 +
+                       Precip_seasonality_BIO15 +
+                       Total_precip_mm_BIO12,
+                      data = data),
+               
+              #Sub-model 2 - not used since Native species are correlated with human population, which is used instead. 
+              # glm.nb(Native_species ~ 
+              #         Age_Ma + 
+              #         distance_continent_km +
+              #         Max_temp_deg_C_BIO5 +
+              #         Area_hundredsqkm +
+              #         Temp_range_deg_C_BIO7+
+              #         Min_temp_deg_C_BIO6 +
+              #         Precip_seasonality_BIO15 +
+              #        Total_precip_mm_BIO12,
+              #         data = data),              
+              
+              #Sub-model 3 
+              glm(Human_population ~ 
+                    Max_temp_deg_C_BIO5 + 
+                    Area_hundredsqkm +
+                    Year_of_modern_colonization,
+                 family = "poisson", data = data),
+              
+              #Sub-model 4
+              glm(Average_human_modification ~ 
+                    Human_population,
+                  family= gaussian, data=data),
+              
+              #Sub-model 5
+              glm.nb(Maximum_elevation_ft ~ 
+                    Area_hundredsqkm,
+                  data = data),
+              
+              #Sub-model 6
+              glm(Temp_range_deg_C_BIO7 ~ 
+                    Latitude_of_centroid,
+                  family = "gaussian", data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 8
+              glm(Precip_seasonality_BIO15 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data),
+              
+              #Sub-model 9
+              glm(Total_precip_mm_BIO12 ~
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+              
+summary(hyp, conserve = T)
+              
+```
+
+
+This is attempt two - we're keeping the significant variables from hyp, and then adding in any new relationships identified by the tests of directed separation (as long as they have support from literature). 
+```{r}
+hyp2 <- psem(
+               #Sub-model 1
+               glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5 + 
+                       Maximum_elevation_ft,
+                      data = data),
+ 
+              #Sub-model 7
+              glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+)
+
+summary(hyp2, conserve = T)
+#Now that everything looks good, it's time for some bootstrapping to estimate the parameters. 
+
+#Extract coefficients by bootstrapping (this make take a little while)
+boot1 <- bootEff(hyp2, R = 10000, seed = 3, parallel = "multicore", type = "parametric")
+#Note- there may be a handful of error messages about algorithms not converging. That is ok - we're running 10,000 iterations, so it's extremely likely that some of them won't work. 
+
+effs1 <- semEff(boot1)
+summary(effs1)  
+#Everything significant
+
+plot(hyp2)
+```
+
+
+Evaluate Sub-Model 1
+```{r}
+sm1 <-        glm.nb(Invasive_species ~ 
+                       Max_temp_deg_C_BIO5 + 
+                       Maximum_elevation_ft,
+                      data = data)
+
+options(na.action=na.fail)
+aic_sm1 <- dredge(sm1)
+#Lowest AIC is the one that uses all the variables. 
+
+summary(sm1) #Note that dispersion parameter is just a bit low.
+
+#Check other model diagnostics
+#Ratio of deviance explained - pretty good
+(sm1$null.deviance - (deviance(sm1))) / sm1$null.deviance * 100
+
+#Another check for overdispersion
+sm1$deviance/sm1$df.residual # Nearly 1
+sum((resid(sm1, type = "pearson"))^2) < sm1$df.residual #TRUE is good. 
+
+#simulate residuals with DHARMa
+simulationOutput_sm1 <- simulateResiduals(fittedModel = sm1, plot = T) #No significant issues with DHARMa - looks perfect. 
+
+plot(sm1$fitted.values, residuals.glm(sm1))
+#No obvious patterns here. 
+```
+
+
+Evaluate sub-model 7
+```{r}
+              #Sub-model 7
+sm7 <-           glm(Max_temp_deg_C_BIO5 ~
+                    Area_hundredsqkm+
+                    Latitude_of_centroid,
+                  family = "gaussian",
+                  data = data)
+
+options(na.action=na.fail)
+aic_sm7 <- dredge(sm7)
+
+#Note: no dispersion parameters here since it's not a negative binomial glm. 
+
+(sm7$null.deviance - (deviance(sm7))) / sm7$null.deviance * 100
+
+simulationOutput_sm7 <- simulateResiduals(fittedModel = sm7, plot = T)
+
+plot(sm7$fitted.values, residuals.glm(sm7))
+```
+The DHARMa plots and the residual vs fitted plot don't look good for this model. But the purpose of this project is to predict species richness, not maximum temperature, so it's very possible we're missing some predictors that would correct the DHARMa plots here. That's ok - it shouldn't significantly affect our parameters for the invasive species richness model. 
+
+
+
+Plots 
+```{r}
+#These functions from StackExchange: https://stackoverflow.com/questions/59150905/is-there-a-ggplot2-analogue-to-the-avplots-function-in-r
+avPlots.invis <- function(MODEL, ...) {
+  
+  ff <- tempfile()
+  png(filename = ff)
+  OUT <- car::avPlots(MODEL, ...)
+  dev.off()
+  unlink(ff)
+  OUT }
+
+ggAVPLOTS  <- function(MODEL, YLAB = NULL) {
+  
+  #Extract the information for AV plots
+  AVPLOTS <- avPlots.invis(MODEL)
+  K       <- length(AVPLOTS)
+  
+  #Create the added variable plots using ggplot
+  GGPLOTS <- vector('list', K)
+  for (i in 1:K) {
+  DATA         <- data.frame(AVPLOTS[[i]])
+  GGPLOTS[[i]] <- ggplot2::ggplot(aes_string(x = colnames(DATA)[1], 
+                                             y = colnames(DATA)[2]), 
+                                  data = DATA) +
+                  geom_point(colour = 'black', shape=1,size=3) + 
+                  geom_smooth(method = 'lm', se = TRUE, 
+                              color = '#f76f73', formula = y ~ x) +
+                  xlab(paste0('Predictor Residual \n (', 
+                         names(DATA)[1], ' | others)')) +
+                  ylab(paste0('Response Residual \n (',
+                         ifelse(is.null(YLAB), 
+                           paste0(names(DATA)[2], ' | others'), YLAB), ')'))+
+                  theme_classic()}
+  
+  #Return output object
+  GGPLOTS }
+
+# p1 - p5 can be found in SEMs_Established.Rmd
+
+p5 <- ggAVPLOTS(hyp2[[1]])[1]
+p5 <- p5[[1]]
+p6 <- ggAVPLOTS(hyp2[[1]])[2]
+p6 <- p6[[1]]
+```
