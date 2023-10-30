@@ -5,7 +5,7 @@ Please reach out if you have any questions about content or organization in this
 
 <br/><br/>
 __Raw Data Files:__
-1. Oceanic_Islands_Master_Database.xlsx 
+1. Oceanic_Islands_Master_Database.xlsx [this file is not anonymous and therefore will be re-added back to the repo following peer review]
     * This is the main database. This Excel spreadsheet version includes notes attached to individual cells that explain the sources of each datapoint (when those datapoints differ from the sources already listed in the manuscript.
 2. Oceanic_Islands_Master_Database.csv
     * This is the exact same file as above, just in CSV form. I recommend you use this version if you're going to run any of the code below. 
