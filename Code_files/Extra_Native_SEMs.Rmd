@@ -4,7 +4,7 @@ author: "Will Pfadenhauer"
 date: "2023-09-18"
 output: html_document
 ---
-Load packages
+##Load packages
 ```{r}
 require(data.table)
 require(piecewiseSEM)
@@ -14,10 +14,10 @@ require(MuMIn)
 require(ResourceSelection)
 ```
 
-Data Prep
+##Data Prep
 ```{r}
 #Load data
-data <- fread("[link to Oceanic_Islands_Master_Database.csv]")
+data <- fread("#path to Oceanic_Islands_Master_Database.csv")
 
 #Create established richness column (aka total nonnative species)
 data$tot_nn_species <- data$Established_only_species + data$Invasive_species
@@ -32,6 +32,7 @@ data$Latitude_of_centroid <- as.numeric(data$Latitude_of_centroid)
 data$Latitude_of_centroid <- abs(data$Latitude_of_centroid)
 ```
 
+##Purpose of this file
 The purpose of this file is to test all possible combinations of correlated variables, to figure out which combination works best. 
 
 There are two such pairs of covariates: maximum elevation and minimum monthly temperature (Pearson = 0.73) and distance to nearest continent and distance to nearest landmass (inherently similar).
@@ -60,8 +61,7 @@ Each pSEM consists of a series of sub-models, which are either negative binomial
 
 --
 
-OPTION 00: 
-
+##OPTION 00: WINNER
 Distance to nearest continent 
 Maximum elevation 
 ```{r}
@@ -215,7 +215,7 @@ rm(n00, n00_2, n00_3)
 This option (00) is the WINNER - highest R squared. We'll use distance to nearest continent and maximum elevation in the other file (SEMs_Native.Rmd). 
 
 
-OPTION 01: 
+##OPTION 01: 
 
 Distance to nearest continent 
 Min_temp_deg_C_BIO6
@@ -352,7 +352,7 @@ rm(n01, n01_2)
 I'm going to include fewer comments in the next two code chunks, but I'm following the exact same process as above. 
 
 
-OPTION 10: 
+##OPTION 10: 
 
 Distance to nearest landmass
 Maximum elevation 
@@ -474,7 +474,7 @@ rm(n10, n10_2)
 
 
 
-OPTION 11: 
+##OPTION 11: 
 
 Distance to nearest landmass
 Min_temp_deg_C_BIO6

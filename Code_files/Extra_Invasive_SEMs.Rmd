@@ -4,7 +4,8 @@ author: "Will Pfadenhauer"
 date: "2023-09-18"
 output: html_document
 ---
-Load packages
+
+##Load packages
 ```{r}
 require(data.table)
 require(piecewiseSEM)
@@ -14,10 +15,10 @@ require(MuMIn)
 require(ResourceSelection)
 ```
 
-Data Prep
+##Data Prep
 ```{r}
 #Load data
-data <- fread("[link to Oceanic_Islands_Master_Database.csv]")
+data <- fread("#path to Oceanic_Islands_Master_Database.csv")
 
 #Create established richness column (aka total nonnative species)
 data$tot_nn_species <- data$Established_only_species + data$Invasive_species
@@ -32,6 +33,7 @@ data$Latitude_of_centroid <- as.numeric(data$Latitude_of_centroid)
 data$Latitude_of_centroid <- abs(data$Latitude_of_centroid)
 ```
 
+##Purpose of this file 
 The purpose of this file is to test all possible combinations of correlated variables, to figure out which combination works best. 
 
 There are three such pairs of covariates: maximum elevation and minimum monthly temperature (Pearson = 0.73), human population and native plant richness (Pearson = 0.80), and distance to nearest continent and distance to nearest landmass (inherently similar).
@@ -63,7 +65,7 @@ Each pSEM consists of a series of sub-models, which are either negative binomial
 
 --
 
-OPTION 000: 
+##OPTION 000: 
 
 Native species
 Distance to landmass
@@ -210,7 +212,7 @@ I'm going to include fewer comments in the rest of the code chunks, but I'm foll
 
 --
 
-OPTION 001:
+##OPTION 001:
 
 Native species
 Distance to landmass
@@ -317,7 +319,7 @@ rm(i001)
 ```
 
 
-OPTION 010: 
+##OPTION 010: 
 Native species
 Distance to continent
 Maximum elevation
@@ -454,7 +456,7 @@ rm(i010, i010_2)
 ```
 
 
-OPTION 011: 
+##OPTION 011: 
 
 Native species
 Distance to continent
@@ -579,7 +581,7 @@ rm(i011, i011_2)
 ```
 
 
-OPTION 100: WINNER (identical to option 110)
+##OPTION 100: WINNER (identical to option 110)
 
 Human population
 Distance to landmass
@@ -688,7 +690,7 @@ rm(i100)
 ```
 
 
-OPTION 101: 
+##OPTION 101: 
 
 Human population
 Distance to landmass
@@ -801,7 +803,7 @@ rm(i101)
 ```
 
 
-OPTION 110: WINNER (highest R squared - 0.51 - and lowest AIC)
+##OPTION 110: WINNER (highest R squared - 0.51 - and lowest AIC)
 
 Human population
 Distance to continent
@@ -908,7 +910,7 @@ rm(i110)
 ```
 
 
-OPTION 111: 
+##OPTION 111: 
 
 Human population
 Distance to continent

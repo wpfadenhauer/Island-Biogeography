@@ -1,0 +1,85 @@
+---
+title: "Islands_Area_Isolation_Plots"
+author: "Will Pfadenhauer"
+date: "2023-10-26"
+output: html_document
+---
+
+##Load packages
+```{r}
+require(ggplot2)
+require(svglite)
+```
+
+##Manually enter results
+```{r}
+data <- data.frame(
+  Species = c("Native", "Established", "Invasive"),
+  Mean = c(0.155, 0.129, 0.085),
+  UpperV = c(0.258, 0.250, 0.179),
+  LowerV = c(0.078, 0.048, 0.025)
+  )
+data$Species <- factor(data$Species, levels = data$Species)
+```
+
+##Generate plot
+```{r}
+g <- ggplot(data, aes(x = Species, y = Mean, colour = Species)) +
+  stat_summary(geom = "point", size = 4 ) +
+  geom_errorbar(aes(ymin = LowerV, ymax = UpperV), width = 0.2, linewidth=1.5, position = position_dodge(0.9)) +
+  labs(
+    x = "Type of Plant Richness",
+    y = "Standardized Coefficient"
+  ) +
+  scale_color_manual(values = c("#027fdc", "#ffb703", "#f76f73")) +
+    theme_bw()+
+   theme(legend.position = "none", text=element_text(size=16))
+
+g
+```
+
+
+##Export plot
+```{r}
+#Export the plot as an SVG file
+#Need to run all of these lines at the same time. 
+svglite("#path of where to save figure.svg", width = 4, height = 5)
+g
+dev.off()
+```
+
+
+##All the same steps for the isolation plot (no longer in manuscript)
+Isolation plot (no longer in use)
+```{r}
+# data2 <- data.frame(
+#   Species = c("Native", "Established"),
+#   Mean = c(-0.399, -0.131),
+#   UpperV = c(-0.275, -0.048),
+#   LowerV = c(-0.573, -0.269)
+#   )
+# data2$Species <- factor(data2$Species, levels = data2$Species)
+# 
+# 
+# h <- ggplot(data2, aes(x = Species, y = Mean, colour = Species)) +
+#   stat_summary(geom = "point", size = 4 ) +
+#   geom_errorbar(aes(ymin = LowerV, ymax = UpperV), width = 0.2, linewidth=1.5, position = position_dodge(0.9)) +
+#   coord_cartesian(ylim=c(-0.6, 0), clip = "off") +
+#  # scale_x_discrete(position = "top")+
+#   labs(
+#     x = "Type of Plant Richness",
+#     y = "Standardized Coefficient"
+#   ) +
+#   scale_color_manual(values = c("#027fdc", "#ffb703")) +
+#     theme_bw()+
+#    theme(legend.position = "none")
+```
+
+Export plot
+```{r}
+#Export the plot as an SVG file
+#Need to run all of these lines at the same time. 
+# svglite("#path of where to save figure.svg", width = 4, height = 5)
+# h
+# dev.off()
+```
