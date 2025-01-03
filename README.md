@@ -2,7 +2,7 @@
 # PLEASE NOTE: The official version of this repository is available at the following DOI: https://doi.org/10.5066/P9XES5OI 
 
 
-Code for "Human activity drives establishment, but not invasion, of non-native plants on islands"
+Code for "Human activity drives establishment, but not invasion, of non-native plants on islands" (DOI: https://doi.org/10.1111/ecog.07379)
 
 Corresponding author: William G. Pfadenhauer (wpfadenhauer@umass.edu). Organismic and Evolutionary Biology, University of Massachusetts Amherst. 160 Holdsworth Way, Amherst, Massachusetts 01003, USA
 
